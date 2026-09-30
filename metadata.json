@@ -1,0 +1,7 @@
+{
+  "name": "NEO",
+  "description": "Professional Service Center Management App for Indian Businesses with GST, WhatsApp alerts, Role-based portal, and Live Ticket Tracking",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
