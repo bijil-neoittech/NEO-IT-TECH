@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile in the NEO Service Center platform",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the user" },
+        "email": { "type": "string", "description": "Email address of the user" },
+        "fullName": { "type": "string", "description": "Display name of the user" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "role": { "type": "string", "enum": ["ADMIN", "TECHNICIAN", "CUSTOMER"], "description": "Role in the service center" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp of creation" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp of last update" }
+      },
+      "required": ["userId", "email", "fullName", "role", "createdAt"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "Service repair ticket",
+      "type": "object",
+      "properties": {
+        "ticketNumber": { "type": "string", "description": "Formatted ticket identifier e.g. NEO-2026-001" },
+        "userId": { "type": "string", "description": "Author UID who created the ticket" },
+        "customerId": { "type": "string", "description": "Customer UID or reference ID" },
+        "customerName": { "type": "string", "description": "Customer full name" },
+        "customerPhone": { "type": "string", "description": "Customer phone number" },
+        "customerEmail": { "type": "string", "description": "Customer email" },
+        "serviceType": { "type": "string", "description": "Service mode: In-Store, Pick-up, Onsite" },
+        "deviceName": { "type": "string", "description": "Device brand and model" },
+        "issueDescription": { "type": "string", "description": "Problem reported by customer" },
+        "locationAddress": { "type": "string", "description": "Service or delivery address" },
+        "status": { "type": "string", "description": "Workflow pipeline status" },
+        "assignedTechnicianId": { "type": "string", "description": "Assigned technician UID" },
+        "assignedTechnicianName": { "type": "string", "description": "Technician full name" },
+        "diagnosticNotes": { "type": "string", "description": "Technician diagnostic remarks" },
+        "partsDescription": { "type": "string", "description": "Spare parts replaced" },
+        "partsCost": { "type": "number", "description": "Cost of parts" },
+        "laborDescription": { "type": "string", "description": "Labor and repair description" },
+        "laborCost": { "type": "number", "description": "Cost of service labor" },
+        "gstRate": { "type": "number", "description": "Applicable GST tax percentage" },
+        "customerApprovalNote": { "type": "string", "description": "Customer remarks on quotation approval" },
+        "quotationItemsJson": { "type": "string", "description": "Serialized itemized quote list" },
+        "statusTimelineJson": { "type": "string", "description": "Serialized audit timeline events" },
+        "paymentStatus": { "type": "string", "enum": ["PENDING", "RECEIVED"], "description": "Payment status" },
+        "paymentMode": { "type": "string", "description": "CASH, UPI, CARD, BANK_TRANSFER" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp" }
+      },
+      "required": ["ticketNumber", "userId", "customerName", "customerPhone", "deviceName", "status", "paymentStatus", "createdAt"]
+    },
+    "CompanyProfile": {
+      "title": "CompanyProfile",
+      "description": "Business settings and GST configuration",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string", "description": "Registered company name" },
+        "tagline": { "type": "string", "description": "Business tagline" },
+        "ticketSeriesPrefix": { "type": "string", "description": "Prefix for tickets" },
+        "address": { "type": "string", "description": "Physical service center address" },
+        "gstin": { "type": "string", "description": "GSTIN number" },
+        "phone": { "type": "string", "description": "Contact phone" },
+        "email": { "type": "string", "description": "Contact email" },
+        "termsAndConditions": { "type": "string", "description": "Terms on invoices" },
+        "currencySymbol": { "type": "string", "description": "Currency symbol" },
+        "taxEnabled": { "type": "boolean", "description": "Whether GST is enabled" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["companyName", "phone", "email"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and role information"
+    },
+    "/tickets/{ticketId}": {
+      "schema": "Ticket",
+      "description": "Service center repair tickets"
+    },
+    "/company_profile/{profileId}": {
+      "schema": "CompanyProfile",
+      "description": "Service center business settings and tax configuration"
+    },
+    "/admins/{userId}": {
+      "schema": "User",
+      "description": "Platform administrator records"
+    }
+  }
+}

@@ -1,0 +1,160 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 0. Global Catch-All Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Core Primitives & Hardened Helpers
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email == "info.neoittech@gmail.com" &&
+        request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 2. Schema Validation Functions
+    function isValidUser(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 200 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             data.role is string && (data.role in ['ADMIN', 'TECHNICIAN', 'CUSTOMER']) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidTicket(data) {
+      return data.ticketNumber is string && data.ticketNumber.size() > 0 && data.ticketNumber.size() <= 64 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (!('customerId' in data) || (data.customerId is string && data.customerId.size() <= 128)) &&
+             data.customerName is string && data.customerName.size() > 0 && data.customerName.size() <= 200 &&
+             data.customerPhone is string && data.customerPhone.size() > 0 && data.customerPhone.size() <= 50 &&
+             (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 200)) &&
+             (!('serviceType' in data) || (data.serviceType is string && data.serviceType.size() <= 50)) &&
+             data.deviceName is string && data.deviceName.size() > 0 && data.deviceName.size() <= 200 &&
+             (!('issueDescription' in data) || (data.issueDescription is string && data.issueDescription.size() <= 5000)) &&
+             (!('locationAddress' in data) || (data.locationAddress is string && data.locationAddress.size() <= 1000)) &&
+             data.status is string && data.status.size() > 0 && data.status.size() <= 50 &&
+             (!('assignedTechnicianId' in data) || (data.assignedTechnicianId is string && data.assignedTechnicianId.size() <= 128)) &&
+             (!('assignedTechnicianName' in data) || (data.assignedTechnicianName is string && data.assignedTechnicianName.size() <= 200)) &&
+             (!('diagnosticNotes' in data) || (data.diagnosticNotes is string && data.diagnosticNotes.size() <= 5000)) &&
+             (!('partsDescription' in data) || (data.partsDescription is string && data.partsDescription.size() <= 1000)) &&
+             (!('partsCost' in data) || data.partsCost is number) &&
+             (!('laborDescription' in data) || (data.laborDescription is string && data.laborDescription.size() <= 1000)) &&
+             (!('laborCost' in data) || data.laborCost is number) &&
+             (!('gstRate' in data) || data.gstRate is number) &&
+             (!('customerApprovalNote' in data) || (data.customerApprovalNote is string && data.customerApprovalNote.size() <= 1000)) &&
+             (!('quotationItemsJson' in data) || (data.quotationItemsJson is string && data.quotationItemsJson.size() <= 50000)) &&
+             (!('statusTimelineJson' in data) || (data.statusTimelineJson is string && data.statusTimelineJson.size() <= 50000)) &&
+             data.paymentStatus is string && (data.paymentStatus in ['PENDING', 'RECEIVED']) &&
+             (!('paymentMode' in data) || (data.paymentMode is string && data.paymentMode.size() <= 50)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidCompanyProfile(data) {
+      return data.companyName is string && data.companyName.size() > 0 && data.companyName.size() <= 200 &&
+             (!('tagline' in data) || (data.tagline is string && data.tagline.size() <= 200)) &&
+             (!('ticketSeriesPrefix' in data) || (data.ticketSeriesPrefix is string && data.ticketSeriesPrefix.size() <= 50)) &&
+             (!('address' in data) || (data.address is string && data.address.size() <= 500)) &&
+             (!('gstin' in data) || (data.gstin is string && data.gstin.size() <= 50)) &&
+             data.phone is string && data.phone.size() > 0 && data.phone.size() <= 50 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 200 &&
+             (!('termsAndConditions' in data) || (data.termsAndConditions is string && data.termsAndConditions.size() <= 5000)) &&
+             (!('currencySymbol' in data) || (data.currencySymbol is string && data.currencySymbol.size() <= 10)) &&
+             (!('taxEnabled' in data) || data.taxEnabled is bool) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    // 3. User Profiles Collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       isValidUser(incoming()) &&
+                       (incoming().role == 'CUSTOMER' || isAdmin());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       (request.auth.uid == userId || isAdmin()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUser(incoming()) &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'updatedAt']));
+
+      allow delete: if isAdmin();
+    }
+
+    // 4. Admins Collection
+    match /admins/{userId} {
+      allow get, list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // 5. Tickets Collection
+    match /tickets/{ticketId} {
+      allow get: if isSignedIn() &&
+                    isValidId(ticketId) &&
+                    (resource.data.userId == request.auth.uid ||
+                     resource.data.customerId == request.auth.uid ||
+                     resource.data.assignedTechnicianId == request.auth.uid ||
+                     isAdmin());
+
+      allow list: if isSignedIn() &&
+                    (resource.data.userId == request.auth.uid ||
+                     resource.data.customerId == request.auth.uid ||
+                     resource.data.assignedTechnicianId == request.auth.uid ||
+                     isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(ticketId) &&
+                       incoming().userId == request.auth.uid &&
+                       isValidTicket(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(ticketId) &&
+                       (existing().userId == request.auth.uid ||
+                        existing().customerId == request.auth.uid ||
+                        existing().assignedTechnicianId == request.auth.uid ||
+                        isAdmin()) &&
+                       incoming().ticketNumber == existing().ticketNumber &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTicket(incoming());
+
+      allow delete: if isAdmin();
+    }
+
+    // 6. Company Profile Collection
+    match /company_profile/{profileId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidCompanyProfile(incoming());
+    }
+  }
+}

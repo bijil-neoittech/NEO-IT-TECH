@@ -996,4 +996,66 @@ Thank you for choosing *$companyName*!
             }
         }
     }
+
+    val firestoreRepository: com.example.data.firestore.FirestoreServiceRepository by lazy {
+        com.example.data.firestore.FirestoreServiceRepository(getApplication())
+    }
+
+    private val _isCloudSyncing = MutableStateFlow(false)
+    val isCloudSyncing: StateFlow<Boolean> = _isCloudSyncing.asStateFlow()
+
+    private val _cloudSyncMessage = MutableStateFlow<String?>(null)
+    val cloudSyncMessage: StateFlow<String?> = _cloudSyncMessage.asStateFlow()
+
+    fun syncAllTicketsToFirestore(onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            _isCloudSyncing.value = true
+            try {
+                val tickets = allTickets.value
+                val uid = firestoreRepository.currentUser()?.uid ?: "staff_local"
+                var count = 0
+                for (ticket in tickets) {
+                    val firestoreTicket = com.example.data.firestore.FirestoreTicket(
+                        ticketNumber = ticket.ticketNumber,
+                        userId = uid,
+                        customerId = ticket.customerId.toString(),
+                        customerName = ticket.customerName,
+                        customerPhone = ticket.customerPhone,
+                        customerEmail = ticket.customerEmail,
+                        serviceType = ticket.serviceType,
+                        deviceName = ticket.deviceName,
+                        issueDescription = ticket.issueDescription,
+                        locationAddress = ticket.locationAddress,
+                        status = ticket.status,
+                        assignedTechnicianId = ticket.assignedTechnicianId.toString(),
+                        assignedTechnicianName = ticket.assignedTechnicianName,
+                        diagnosticNotes = ticket.diagnosticNotes,
+                        partsDescription = ticket.partsDescription,
+                        partsCost = ticket.partsCost,
+                        laborDescription = ticket.laborDescription,
+                        laborCost = ticket.laborCost,
+                        gstRate = ticket.gstRate,
+                        customerApprovalNote = ticket.customerApprovalNote,
+                        quotationItemsJson = ticket.quotationItemsJson,
+                        statusTimelineJson = ticket.statusTimelineJson,
+                        paymentStatus = ticket.paymentStatus,
+                        paymentMode = ticket.paymentMode
+                    )
+                    firestoreRepository.createTicket(firestoreTicket)
+                    count++
+                }
+                val msg = "Successfully synchronized $count tickets to Firebase Firestore!"
+                _cloudSyncMessage.value = msg
+                _toastMessage.value = msg
+                onResult(true, msg)
+            } catch (e: Exception) {
+                val msg = "Cloud sync failed: ${e.localizedMessage}"
+                _cloudSyncMessage.value = msg
+                _toastMessage.value = msg
+                onResult(false, msg)
+            } finally {
+                _isCloudSyncing.value = false
+            }
+        }
+    }
 }

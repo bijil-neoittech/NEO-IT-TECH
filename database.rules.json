@@ -1,0 +1,20 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'info.neoittech@gmail.com')"
+      }
+    },
+    "tickets": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "company_profile": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email === 'info.neoittech@gmail.com'"
+    }
+  }
+}
